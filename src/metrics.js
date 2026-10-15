@@ -38,7 +38,6 @@ class Metrics {
   }
 
   async flush() {
-    if (this.buckets.size === 0) return;
     const now = Math.floor(Date.now() / 1000);
     const series = [];
     for (const [key, value] of this.buckets) {
@@ -53,6 +52,18 @@ class Metrics {
       });
     }
     this.buckets.clear();
+    // Heartbeat: keep the errors metric alive with zeros so the error-rate
+    // monitor and dashboard have a clean baseline before any failure.
+    if (!series.some((s) => s.metric === 'checkout.request.errors')) {
+      series.push({
+        metric: 'checkout.request.errors',
+        type: 2,
+        points: [{ timestamp: now, value: 0 }],
+        interval: Math.round(this.intervalMs / 1000),
+        tags: ['service:checkout-api', `env:${process.env.DD_ENV || 'local'}`],
+        resources: [{ name: process.env.DD_HOST_NAME || 'checkout-api-demo', type: 'host' }],
+      });
+    }
     const res = await fetch(`https://api.${this.site}/api/v2/series`, {
       method: 'POST',
       headers: {
