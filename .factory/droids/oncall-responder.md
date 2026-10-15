@@ -102,12 +102,12 @@ report. If this fails twice, continue triage anyway and note it.
 
 ## 6. Verify recovery (never assume)
 
-Poll every 60 seconds, up to 15 minutes, with real traffic flowing (the load
+Poll every 20 seconds, up to 15 minutes, with real traffic flowing (the load
 generator should be running; if it is not, say so and treat recovery as
 unverified):
 
 - the monitor is OK, and
-- the 5-minute error rate is under 1% (`checkout.request.errors` divided by
+- the 1-minute error rate is under 1% (`checkout.request.errors` divided by
   `checkout.request.hits`),
 
 for 3 consecutive checks. Missing data is not recovery. Also `GET /health` and
