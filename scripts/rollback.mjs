@@ -35,7 +35,10 @@ async function main() {
     { headers }
   );
   if (!deploysRes.ok) throw new Error(`deploy history lookup failed: ${deploysRes.status}`);
-  const deploys = await deploysRes.json();
+  // The Render API wraps each deploy as { deploy: {...}, cursor } — unwrap it.
+  const deploysJson = await deploysRes.json();
+  const deployItems = Array.isArray(deploysJson) ? deploysJson : deploysJson.data ?? [];
+  const deploys = deployItems.map((d) => (d && d.deploy) ? d.deploy : d);
 
   const live = deploys.find((d) => d.status === 'live');
   const goodStatuses = new Set(['live', 'succeeded', 'deactivated']);
