@@ -33,6 +33,18 @@ function providerRate(currency) {
   return fxProviderCache.get(currency);
 }
 
+// Perf: surface the provider's plan-tier fee per line instead of per-line
+// fee reads at checkout time. Sample payload from the provider's /tiers
+// endpoint; the premium tier (SKU-1002) is not in the sample payload yet.
+const TIER_FEES = {
+  'SKU-1001': { fee: 1.5 },
+  'SKU-1003': { fee: 0.5 },
+};
+
+function tierFee(sku) {
+  return TIER_FEES[sku].fee;
+}
+
 function providerSnapshot() {
   // Sample payload shape from the provider's /rates endpoint. Built from the
   // static FX table so every supported currency has a rate; a snapshot that
@@ -93,12 +105,14 @@ function priceCart(items, currency) {
       throw err;
     }
     const rate = providerRate(currency);
+    const fee = tierFee(sku);
     return {
       sku,
       name: item.name,
       qty,
       unit: round2(item.usd * rate),
       total: round2(item.usd * rate * qty),
+      fee: round2(fee * rate),
     };
   });
   const total = round2(lines.reduce((sum, l) => sum + l.total, 0));
