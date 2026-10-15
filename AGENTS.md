@@ -29,7 +29,8 @@ customer: Meridian Mutual. No real payments, no database, no auth.
 
 ## Telemetry
 
-- Traces: dd-trace, agentless to the Datadog intake (`DD_API_KEY`), service
+- Traces: dd-trace exported over OTLP straight to Datadog's OTLP intake
+  (`OTEL_EXPORTER_OTLP_ENDPOINT`, dd-api-key assembled at runtime), service
   `checkout-api`, env `demo`, version = deploy SHA (unified service tagging;
   APM deployment tracking keys off the version tag).
 - Logs: JSON lines with trace ids; Render streams them to Datadog. Query

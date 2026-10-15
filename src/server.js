@@ -1,11 +1,13 @@
 'use strict';
 
 // Initialize the tracer before any other require so instrumentation applies.
-// Export path (all via env vars, no code change to switch):
-//   - Agentless: DD_API_KEY + DD_TRACE_EXPERIMENTAL_EXPORTER=agentless
-//   - OTLP:      OTEL_EXPORTER_OTLP_ENDPOINT=https://otlp.datadoghq.com
-//                OTEL_EXPORTER_OTLP_HEADERS=dd-api-key=<key>
+// Traces are exported via OTLP straight to Datadog's intake (no agent needed):
+//   OTEL_EXPORTER_OTLP_ENDPOINT=https://otlp.datadoghq.com (set on Render)
+//   OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf (set on Render)
+//   OTEL_EXPORTER_OTLP_HEADERS=dd-api-key=<DD_API_KEY> (assembled below, so
+//   the key itself only ever lives in the DD_API_KEY secret)
 if (process.env.DD_TRACE_ENABLED !== 'false') {
+  process.env.OTEL_EXPORTER_OTLP_HEADERS ||= `dd-api-key=${process.env.DD_API_KEY || ''}`;
   require('dd-trace').init({
     service: process.env.DD_SERVICE || 'checkout-api',
     env: process.env.DD_ENV || 'local',

@@ -49,6 +49,7 @@ class Metrics {
         points: [[now, value]],
         interval: Math.round(this.intervalMs / 1000),
         tags: ['service:checkout-api', `env:${process.env.DD_ENV || 'local'}`, ...tags],
+        resources: [{ name: process.env.DD_HOST_NAME || 'checkout-api-demo', type: 'host' }],
       });
     }
     this.buckets.clear();
@@ -62,7 +63,8 @@ class Metrics {
       body: JSON.stringify({ series }),
     });
     if (!res.ok) {
-      logJson('warn', 'metrics flush rejected', { status: res.status });
+      const body = await res.text();
+      logJson('warn', 'metrics flush rejected', { status: res.status, body: body.slice(0, 400) });
     }
   }
 }

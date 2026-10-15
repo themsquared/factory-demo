@@ -19,8 +19,12 @@ services:
         value: demo
       - key: DD_SITE
         value: datadoghq.com
-      # Traces go straight to the Datadog intake; no agent needed (free tier).
-      - key: DD_TRACE_EXPERIMENTAL_EXPORTER
-        value: agentless
+      # Traces are exported via OTLP straight to Datadog's intake (free tier,
+      # no agent). The dd-api-key header is assembled in src/server.js from
+      # the DD_API_KEY secret, so it never appears here.
+      - key: OTEL_EXPORTER_OTLP_ENDPOINT
+        value: https://otlp.datadoghq.com
+      - key: OTEL_EXPORTER_OTLP_PROTOCOL
+        value: http/protobuf
       - key: DD_API_KEY
         sync: false
