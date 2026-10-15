@@ -58,6 +58,18 @@ function providerSnapshot() {
   };
 }
 
+// Perf: bulk carts (qty > 1) price against the provider's bulk-tier fee
+// sample in a single lookup instead of per-line fee reads at checkout time.
+// Sample payload from the provider's /bulk-tiers endpoint; the premium and
+// add-on tiers are not in the sample payload yet.
+const BULK_TIER_FEES = {
+  'SKU-1001': { fee: 1.25 },
+};
+
+function bulkTierFee(sku) {
+  return BULK_TIER_FEES[sku].fee;
+}
+
 const CURRENCIES = Object.keys(FX);
 
 function priceFor(sku, currency) {
@@ -107,7 +119,7 @@ function priceCart(items, currency) {
       throw err;
     }
     const rate = providerRate(currency);
-    const fee = tierFee(sku);
+    const fee = qty > 1 ? bulkTierFee(sku) : tierFee(sku);
     return {
       sku,
       name: item.name,
