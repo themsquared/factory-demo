@@ -34,8 +34,14 @@ function providerRate(currency) {
 }
 
 function providerSnapshot() {
-  // Sample payload shape from the provider's /rates endpoint.
-  return { rates: { USD: { rate: 1.0 }, GBP: { rate: 0.79 } } };
+  // Sample payload shape from the provider's /rates endpoint. Built from the
+  // static FX table so every supported currency has a rate; a snapshot that
+  // omits one makes providerRate throw and 500 its checkouts (incident b1ac7104).
+  return {
+    rates: Object.fromEntries(
+      Object.entries(FX).map(([code, rate]) => [code, { rate }])
+    ),
+  };
 }
 
 const CURRENCIES = Object.keys(FX);
