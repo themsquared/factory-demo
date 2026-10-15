@@ -45,8 +45,9 @@ class Metrics {
       const [metric, ...tags] = key.split('|');
       series.push({
         metric,
-        type: 'count',
+        type: 2, // v2 MetricType enum: 2 = count
         points: [[now, value]],
+        interval: Math.round(this.intervalMs / 1000),
         tags: ['service:checkout-api', `env:${process.env.DD_ENV || 'local'}`, ...tags],
       });
     }
