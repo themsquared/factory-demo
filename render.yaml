@@ -1,0 +1,26 @@
+# Render blueprint for the checkout-api demo service (free tier).
+# DD_API_KEY is a secret: set it in the Render dashboard (sync: false below
+# means the blueprint leaves it untouched).
+services:
+  - type: web
+    name: checkout-api
+    runtime: node
+    plan: free
+    region: oregon
+    branch: main
+    buildCommand: npm ci
+    startCommand: node src/server.js
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: DD_SERVICE
+        value: checkout-api
+      - key: DD_ENV
+        value: demo
+      - key: DD_SITE
+        value: datadoghq.com
+      # Traces go straight to the Datadog intake; no agent needed (free tier).
+      - key: DD_TRACE_EXPERIMENTAL_EXPORTER
+        value: agentless
+      - key: DD_API_KEY
+        sync: false
