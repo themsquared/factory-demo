@@ -42,7 +42,9 @@ const TIER_FEES = {
 };
 
 function tierFee(sku) {
-  return TIER_FEES[sku].fee;
+  // A sku missing from the sample /tiers payload has no provider fee yet;
+  // treat it as 0 instead of throwing (incident ef940e0f).
+  return TIER_FEES[sku]?.fee ?? 0;
 }
 
 function providerSnapshot() {
