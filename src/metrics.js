@@ -46,7 +46,7 @@ class Metrics {
       series.push({
         metric,
         type: 2, // v2 MetricType enum: 2 = count
-        points: [[now, value]],
+        points: [{ timestamp: now, value }], // v2 points are objects, not [ts, val] pairs
         interval: Math.round(this.intervalMs / 1000),
         tags: ['service:checkout-api', `env:${process.env.DD_ENV || 'local'}`, ...tags],
         resources: [{ name: process.env.DD_HOST_NAME || 'checkout-api-demo', type: 'host' }],
