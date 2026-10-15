@@ -2,7 +2,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { priceFor, priceCart, CURRENCIES, CATALOG } = require('../src/pricing');
+const { priceFor, priceCart, CURRENCIES, CATALOG, round2 } = require('../src/pricing');
 
 test('prices a sku in all three currencies', () => {
   const usd = priceFor('SKU-1001', 'USD');
@@ -62,6 +62,34 @@ test('regression: every catalog sku is priceable — tier-fee map must not throw
       assert.equal(typeof line.fee, 'number', `${sku} fee should be a number`);
     }
   }
+});
+
+test('regression: bulk carts (qty > 1) must price for every catalog sku — bulk-tier map must not throw on missing tiers', () => {
+  // Incident 24931d39 (deploy 2103282, PR #12): bulkTierFee() read
+  // BULK_TIER_FEES[sku].fee, but BULK_TIER_FEES only covered SKU-1001, so any
+  // cart line with qty > 1 for another sku threw a TypeError ("Cannot read
+  // properties of undefined (reading 'fee')") and the checkout returned 500
+  // on the live service.
+  for (const sku of Object.keys(CATALOG)) {
+    for (const currency of CURRENCIES) {
+      const cart = priceCart([{ sku, qty: 2 }], currency);
+      assert.equal(cart.currency, currency);
+      const line = cart.lines.find((l) => l.sku === sku);
+      assert.equal(line.qty, 2);
+      assert.ok(line.total > 0, `bulk line ${sku} in ${currency} should price positively`);
+      assert.equal(typeof line.fee, 'number', `bulk line ${sku} fee should be a number`);
+    }
+  }
+  const mixed = priceCart(
+    [
+      { sku: 'SKU-1001', qty: 2 },
+      { sku: 'SKU-1002', qty: 3 },
+      { sku: 'SKU-1003', qty: 2 },
+    ],
+    'USD'
+  );
+  assert.equal(mixed.lines.length, 3);
+  assert.equal(mixed.total, round2(49.0 * 2 + 89.0 * 3 + 12.5 * 2));
 });
 
 test('rejects empty or invalid carts', () => {
