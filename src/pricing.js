@@ -67,7 +67,9 @@ const BULK_TIER_FEES = {
 };
 
 function bulkTierFee(sku) {
-  return BULK_TIER_FEES[sku].fee;
+  // A sku missing from the sample /bulk-tiers payload has no provider bulk
+  // fee yet; treat it as 0 instead of throwing (incident 24931d39).
+  return BULK_TIER_FEES[sku]?.fee ?? 0;
 }
 
 const CURRENCIES = Object.keys(FX);
