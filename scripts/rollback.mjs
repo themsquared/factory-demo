@@ -15,6 +15,13 @@ for (const name of required) {
 
 const API = 'https://api.render.com/v1';
 
+// The Render API wraps list entries as { <kind>: {...} } (e.g. { deploy },
+// { service }); unwrap either shape.
+function unwrapList(json, kind) {
+  const items = Array.isArray(json) ? json : json.data ?? [];
+  return items.map((entry) => (entry && entry[kind]) ? entry[kind] : entry);
+}
+
 async function main() {
   const headers = {
     Authorization: `Bearer ${process.env.RENDER_API_KEY}`,
@@ -22,23 +29,44 @@ async function main() {
     Accept: 'application/json',
   };
 
-  const svcRes = await fetch(`${API}/services/${process.env.RENDER_SERVICE_ID}`, { headers });
-  if (!svcRes.ok) throw new Error(`service lookup failed: ${svcRes.status}`);
-  const service = await svcRes.json();
+  // Resolve the service to act on. The injected RENDER_SERVICE_ID can be
+  // stale: incidents ef940e0f (IR-3) and 24931d39 (IR-4) both hit a 404 on
+  // this lookup and the responder had to resolve the real service itself.
+  // On 404 only, fall back to matching the checkout-api web service by name;
+  // the name check below still refuses anything that is not checkout-api.
+  let targetId = process.env.RENDER_SERVICE_ID;
+  const svcRes = await fetch(`${API}/services/${targetId}`, { headers });
+  let service;
+  if (svcRes.ok) {
+    service = await svcRes.json();
+  } else if (svcRes.status === 404) {
+    const listRes = await fetch(`${API}/services?limit=100`, { headers });
+    if (!listRes.ok) {
+      throw new Error(`service lookup failed: 404, and fallback listing failed: ${listRes.status}`);
+    }
+    const match = unwrapList(await listRes.json(), 'service').find(
+      (s) => s.type === 'web_service' && /checkout-api/i.test(s.name || '')
+    );
+    if (!match) {
+      throw new Error('service lookup failed: 404, and no checkout-api web service found to fall back to');
+    }
+    targetId = match.id;
+    service = match;
+    console.error(`rollback: RENDER_SERVICE_ID lookup returned 404; using ${service.name} (${service.id}) resolved by name instead`);
+  } else {
+    throw new Error(`service lookup failed: ${svcRes.status}`);
+  }
   if (!/checkout-api/i.test(service.name || '')) {
     console.error(`rollback: refusing, target service is "${service.name}", not checkout-api`);
     process.exit(2);
   }
 
   const deploysRes = await fetch(
-    `${API}/services/${process.env.RENDER_SERVICE_ID}/deploys?limit=20`,
+    `${API}/services/${targetId}/deploys?limit=20`,
     { headers }
   );
   if (!deploysRes.ok) throw new Error(`deploy history lookup failed: ${deploysRes.status}`);
-  // The Render API wraps each deploy as { deploy: {...}, cursor } — unwrap it.
-  const deploysJson = await deploysRes.json();
-  const deployItems = Array.isArray(deploysJson) ? deploysJson : deploysJson.data ?? [];
-  const deploys = deployItems.map((d) => (d && d.deploy) ? d.deploy : d);
+  const deploys = unwrapList(await deploysRes.json(), 'deploy');
 
   const live = deploys.find((d) => d.status === 'live');
   const goodStatuses = new Set(['live', 'succeeded', 'deactivated']);
@@ -56,10 +84,10 @@ async function main() {
 
   console.log(
     `rollback: live is ${short(live?.commit?.id)}, redeploying ${short(previous.commit.id)} ` +
-      `(commit message: "${previous.commit.message || 'n/a'}")`
+    `(commit message: "${previous.commit.message || 'n/a'}")`
   );
 
-  const res = await fetch(`${API}/services/${process.env.RENDER_SERVICE_ID}/deploys`, {
+  const res = await fetch(`${API}/services/${targetId}/deploys`, {
     method: 'POST',
     headers,
     body: JSON.stringify({ commitId: previous.commit.id }),
@@ -70,7 +98,7 @@ async function main() {
   }
   const deploy = await res.json();
   console.log(`rollback: deploy ${deploy.id} queued for commit ${short(previous.commit.id)}`);
-  console.log(`rollback: watch it with: render___get_deploy / Render dashboard, or GET ${API}/services/${process.env.RENDER_SERVICE_ID}/deploys`);
+  console.log(`rollback: watch it with: render___get_deploy / Render dashboard, or GET ${API}/services/${targetId}/deploys`);
 }
 
 function short(sha) {
