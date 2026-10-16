@@ -92,6 +92,28 @@ test('regression: bulk carts (qty > 1) must price for every catalog sku — bulk
   assert.equal(mixed.total, round2(49.0 * 2 + 89.0 * 3 + 12.5 * 2));
 });
 
+test('regression: every catalog sku is priceable — list-price map must fall back to FX for missing skus', () => {
+  // Incident cf578a7a (deploy b010886, commit 3224748): listPrice() read
+  // LIST_PRICES[sku][currency] with no fallback, but the sample /list-prices
+  // payload only covered SKU-1001 and SKU-1002, so any request for SKU-1003
+  // threw a TypeError ("Cannot read properties of undefined") and returned
+  // 500 on the live service (reproduced: /api/price?sku=SKU-1003 -> HTTP 500
+  // in every currency).
+  for (const sku of Object.keys(CATALOG)) {
+    for (const currency of CURRENCIES) {
+      const price = priceFor(sku, currency);
+      assert.equal(price.sku, sku);
+      assert.equal(price.currency, currency);
+      assert.ok(price.amount > 0, `${sku} in ${currency} should price positively`);
+    }
+  }
+  // SKU-1003 is not in LIST_PRICES; it must fall back to the USD base price
+  // multiplied by the FX rate (12.50 USD base).
+  assert.equal(priceFor('SKU-1003', 'USD').amount, round2(12.5 * 1.0));
+  assert.equal(priceFor('SKU-1003', 'EUR').amount, round2(12.5 * 0.92));
+  assert.equal(priceFor('SKU-1003', 'GBP').amount, round2(12.5 * 0.79));
+});
+
 test('rejects empty or invalid carts', () => {
   assert.throws(() => priceCart([], 'USD'), /at least one item/);
   assert.throws(() => priceCart(undefined, 'USD'), /at least one item/);
