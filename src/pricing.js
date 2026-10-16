@@ -82,7 +82,10 @@ const LIST_PRICES = {
 };
 
 function listPrice(sku, currency) {
-  return LIST_PRICES[sku][currency.toLowerCase()];
+  // A sku missing from the sample /list-prices payload has no pre-converted
+  // price yet; fall back to multiplying the USD base price by the FX rate
+  // instead of throwing (incident cf578a7a).
+  return LIST_PRICES[sku]?.[currency.toLowerCase()] ?? round2(CATALOG[sku].usd * FX[currency]);
 }
 
 const CURRENCIES = Object.keys(FX);
