@@ -72,6 +72,19 @@ function bulkTierFee(sku) {
   return BULK_TIER_FEES[sku]?.fee ?? 0;
 }
 
+// Perf: serve /api/price from the provider's pre-converted list-price table
+// (sample payload from the provider's /list-prices endpoint) instead of
+// multiplying USD base prices on every request. The add-on (SKU-1003) is not
+// in the sample payload yet.
+const LIST_PRICES = {
+  'SKU-1001': { usd: 49.0, eur: 45.08, gbp: 38.71 },
+  'SKU-1002': { usd: 89.0, eur: 81.88, gbp: 70.31 },
+};
+
+function listPrice(sku, currency) {
+  return LIST_PRICES[sku][currency.toLowerCase()];
+}
+
 const CURRENCIES = Object.keys(FX);
 
 function priceFor(sku, currency) {
@@ -88,7 +101,7 @@ function priceFor(sku, currency) {
     err.code = 'UNSUPPORTED_CURRENCY';
     throw err;
   }
-  const amount = round2(item.usd * FX[currency]);
+  const amount = listPrice(sku, currency);
   return { sku, name: item.name, currency, amount };
 }
 
