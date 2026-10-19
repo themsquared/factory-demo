@@ -73,6 +73,26 @@ test('POST /api/checkout prices and validates a USD cart', async (t) => {
   });
 });
 
+test('regression: checkout must return a display_total for every supported currency (GBP included)', async (t) => {
+  // Incident d027e741 (deploy 6514707, PR #17, commit 6820d2d): formatTotal()
+  // read CURRENCY_FORMATS[currency].symbol, but the map only covered USD and
+  // EUR, so GBP checkouts threw a TypeError ("Cannot read properties of
+  // undefined (reading 'symbol')") and returned 500 on the live service.
+  for (const currency of ['USD', 'EUR', 'GBP']) {
+    await withServer(t, async (base) => {
+      const res = await fetch(base + '/api/checkout', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ items: [{ sku: 'SKU-1001', qty: 1 }], currency }),
+      });
+      assert.equal(res.status, 201, `checkout in ${currency} should succeed`);
+      const order = await res.json();
+      assert.equal(order.currency, currency);
+      assert.ok(order.display_total.length > 0, `display_total for ${currency} should be set`);
+    });
+  }
+});
+
 test('unknown paths return 404 json', async (t) => {
   await withServer(t, async (base) => {
     const res = await fetch(base + '/api/nope');

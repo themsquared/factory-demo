@@ -28,15 +28,15 @@ function indexPage(version) {
 }
 
 // UX: show a localized receipt total on checkout. Sample payload from the
-// localization service's /currency-formats endpoint; GBP is not in the
-// sample payload yet.
+// localization service's /currency-formats endpoint; GBP was missing from the
+// sample payload, so the formatter must fall back instead of throwing.
 const CURRENCY_FORMATS = {
   USD: { symbol: '$', decimals: 2 },
   EUR: { symbol: '€', decimals: 2 },
 };
 
 function formatTotal(amount, currency) {
-  const fmt = CURRENCY_FORMATS[currency];
+  const fmt = CURRENCY_FORMATS[currency] || { symbol: `${currency} `, decimals: 2 };
   return `${fmt.symbol}${amount.toFixed(fmt.decimals)}`;
 }
 
