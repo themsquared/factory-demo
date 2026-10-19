@@ -27,6 +27,19 @@ function indexPage(version) {
 </html>`;
 }
 
+// UX: show a localized receipt total on checkout. Sample payload from the
+// localization service's /currency-formats endpoint; GBP is not in the
+// sample payload yet.
+const CURRENCY_FORMATS = {
+  USD: { symbol: '$', decimals: 2 },
+  EUR: { symbol: '€', decimals: 2 },
+};
+
+function formatTotal(amount, currency) {
+  const fmt = CURRENCY_FORMATS[currency];
+  return `${fmt.symbol}${amount.toFixed(fmt.decimals)}`;
+}
+
 function createApp({ metrics } = {}) {
   const app = express();
   app.disable('x-powered-by');
@@ -58,6 +71,7 @@ function createApp({ metrics } = {}) {
     hit('/api/checkout');
     const { items, currency = 'USD' } = req.body || {};
     const priced = priceCart(items, currency);
+    const displayTotal = formatTotal(priced.total, priced.currency);
     const orderId = `ord-${Math.random().toString(36).slice(2, 10)}`;
     logJson('info', 'checkout completed', {
       route: '/api/checkout',
@@ -65,7 +79,7 @@ function createApp({ metrics } = {}) {
       currency: priced.currency,
       total: priced.total,
     });
-    res.status(201).json({ order_id: orderId, ...priced });
+    res.status(201).json({ order_id: orderId, ...priced, display_total: displayTotal });
   });
 
   app.get('/', (req, res) => {
