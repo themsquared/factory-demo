@@ -93,6 +93,24 @@ test('regression: checkout must return a display_total for every supported curre
   }
 });
 
+test('regression: checkout must succeed for SKUs missing from the upsell label map', async (t) => {
+  // Incident IR-7 (deploy e058b13, PR #19, 2026-10-20): upsellLabel() read
+  // UPSELL_LABELS[sku].label, but the sample map only covered SKU-1001 and
+  // SKU-1002, so every checkout containing the add-on SKU-1003 threw a
+  // TypeError ("Cannot read properties of undefined (reading 'label')") and
+  // returned 500 on the live service.
+  await withServer(t, async (base) => {
+    const res = await fetch(base + '/api/checkout', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ items: [{ sku: 'SKU-1003', qty: 1 }], currency: 'USD' }),
+    });
+    assert.equal(res.status, 201, 'checkout with SKU-1003 should succeed');
+    const order = await res.json();
+    assert.equal(order.total > 0, true);
+  });
+});
+
 test('unknown paths return 404 json', async (t) => {
   await withServer(t, async (base) => {
     const res = await fetch(base + '/api/nope');

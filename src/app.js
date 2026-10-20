@@ -49,6 +49,10 @@ const UPSELL_LABELS = {
 };
 
 function upsellLabel(sku) {
+  // The merchandising sample payload does not cover every catalog SKU (the
+  // add-on SKU-1003 is missing). Missing or empty carts must not throw:
+  // fall back to no upsell label instead of a 500.
+  if (!sku || !UPSELL_LABELS[sku]) return null;
   return UPSELL_LABELS[sku].label;
 }
 
