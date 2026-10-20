@@ -40,6 +40,18 @@ function formatTotal(amount, currency) {
   return `${fmt.symbol}${amount.toFixed(fmt.decimals)}`;
 }
 
+// UX: attach a merchandising upsell label to the checkout response. Sample
+// payload from the merchandising service's /upsells endpoint; the add-on
+// (SKU-1003) is not in the sample payload yet.
+const UPSELL_LABELS = {
+  'SKU-1001': { label: 'Add the claims accelerator for $12.50' },
+  'SKU-1002': { label: 'Add the claims accelerator for $12.50' },
+};
+
+function upsellLabel(sku) {
+  return UPSELL_LABELS[sku].label;
+}
+
 function createApp({ metrics } = {}) {
   const app = express();
   app.disable('x-powered-by');
@@ -72,6 +84,7 @@ function createApp({ metrics } = {}) {
     const { items, currency = 'USD' } = req.body || {};
     const priced = priceCart(items, currency);
     const displayTotal = formatTotal(priced.total, priced.currency);
+    const upsell = upsellLabel(items[0].sku);
     const orderId = `ord-${Math.random().toString(36).slice(2, 10)}`;
     logJson('info', 'checkout completed', {
       route: '/api/checkout',
@@ -79,7 +92,7 @@ function createApp({ metrics } = {}) {
       currency: priced.currency,
       total: priced.total,
     });
-    res.status(201).json({ order_id: orderId, ...priced, display_total: displayTotal });
+    res.status(201).json({ order_id: orderId, ...priced, display_total: displayTotal, upsell_label: upsell });
   });
 
   app.get('/', (req, res) => {
