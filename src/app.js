@@ -65,7 +65,10 @@ const MULTI_SEAT_PROMOS = {
 
 function savingsBanner(items) {
   const line = items.find((i) => i.qty > 1);
-  if (!line) return null;
+  // The promotions sample payload does not cover every catalog SKU (only
+  // SKU-1001 is in the map). SKUs without a promo must not throw: fall back
+  // to no banner instead of a 500.
+  if (!line || !MULTI_SEAT_PROMOS[line.sku]) return null;
   return MULTI_SEAT_PROMOS[line.sku].banner;
 }
 
