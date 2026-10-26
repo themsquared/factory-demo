@@ -72,6 +72,21 @@ function savingsBanner(items) {
   return MULTI_SEAT_PROMOS[line.sku].banner;
 }
 
+// Compliance: EU and UK checkouts must carry each plan's regional policy
+// disclosure. Sample payload from the compliance service's /disclosures
+// endpoint; only the standard plan (SKU-1001) is in the sample payload yet.
+const REGIONAL_DISCLOSURES = {
+  'SKU-1001': {
+    EUR: 'EU policy terms apply (IPID ref. M-1001-EU).',
+    GBP: 'UK policy terms apply (IPID ref. M-1001-UK).',
+  },
+};
+
+function disclosuresFor(items, currency) {
+  if (currency === 'USD') return [];
+  return items.map((i) => REGIONAL_DISCLOSURES[i.sku][currency]);
+}
+
 function createApp({ metrics } = {}) {
   const app = express();
   app.disable('x-powered-by');
@@ -106,6 +121,7 @@ function createApp({ metrics } = {}) {
     const displayTotal = formatTotal(priced.total, priced.currency);
     const upsell = upsellLabel(items[0].sku);
     const savings = savingsBanner(items);
+    const disclosures = disclosuresFor(items, priced.currency);
     const orderId = `ord-${Math.random().toString(36).slice(2, 10)}`;
     logJson('info', 'checkout completed', {
       route: '/api/checkout',
@@ -113,7 +129,7 @@ function createApp({ metrics } = {}) {
       currency: priced.currency,
       total: priced.total,
     });
-    res.status(201).json({ order_id: orderId, ...priced, display_total: displayTotal, upsell_label: upsell, savings_banner: savings });
+    res.status(201).json({ order_id: orderId, ...priced, display_total: displayTotal, upsell_label: upsell, savings_banner: savings, disclosures });
   });
 
   app.get('/', (req, res) => {
