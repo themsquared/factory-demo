@@ -111,6 +111,24 @@ test('regression: checkout must succeed for SKUs missing from the upsell label m
   });
 });
 
+test('regression: checkout must succeed for multi-quantity carts whose SKU has no savings promo', async (t) => {
+  // Incident 20ef834e (deploy 18b4078, PR #21, 2026-10-26): savingsBanner()
+  // read MULTI_SEAT_PROMOS[line.sku].banner for any cart line with qty > 1,
+  // but the sample map only covered SKU-1001, so any multi-quantity cart of
+  // another SKU threw a TypeError ("Cannot read properties of undefined
+  // (reading 'banner')") and returned 500 on the live service.
+  await withServer(t, async (base) => {
+    const res = await fetch(base + '/api/checkout', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ items: [{ sku: 'SKU-1002', qty: 3 }], currency: 'USD' }),
+    });
+    assert.equal(res.status, 201, 'checkout with qty > 1 of a SKU without a promo should succeed');
+    const order = await res.json();
+    assert.equal(order.total > 0, true);
+  });
+});
+
 test('unknown paths return 404 json', async (t) => {
   await withServer(t, async (base) => {
     const res = await fetch(base + '/api/nope');
