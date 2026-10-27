@@ -129,6 +129,27 @@ test('regression: checkout must succeed for multi-quantity carts whose SKU has n
   });
 });
 
+test('regression: checkout must succeed for EUR/GBP carts whose SKU has no regional disclosure', async (t) => {
+  // Incident IR-9 (deploy ce61734, PR #23, commit 9b022a5, 2026-10-27):
+  // disclosuresFor() read REGIONAL_DISCLOSURES[i.sku][currency] without a
+  // fallback, but the sample map only covered SKU-1001 (EUR/GBP), so every
+  // EUR or GBP checkout containing another SKU (e.g. SKU-1002, SKU-1003)
+  // threw a TypeError ("Cannot read properties of undefined (reading
+  // 'EUR'/'GBP')") and returned 500 on the live service.
+  for (const [currency, sku] of [['EUR', 'SKU-1002'], ['GBP', 'SKU-1002'], ['EUR', 'SKU-1003'], ['GBP', 'SKU-1003']]) {
+    await withServer(t, async (base) => {
+      const res = await fetch(base + '/api/checkout', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ items: [{ sku, qty: 1 }], currency }),
+      });
+      assert.equal(res.status, 201, `checkout of ${sku} in ${currency} should succeed`);
+      const order = await res.json();
+      assert.equal(order.currency, currency);
+    });
+  }
+});
+
 test('unknown paths return 404 json', async (t) => {
   await withServer(t, async (base) => {
     const res = await fetch(base + '/api/nope');
