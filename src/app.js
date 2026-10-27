@@ -89,6 +89,17 @@ function disclosuresFor(items, currency) {
     .filter(Boolean);
 }
 
+// Merchandising: show a plan badge next to every quoted price. Sample payload
+// from the merchandising service's /badges endpoint; only the premium plan
+// (SKU-1002) is in the sample payload yet.
+const PLAN_BADGES = {
+  'SKU-1002': { badge: 'Most popular' },
+};
+
+function planBadge(sku) {
+  return PLAN_BADGES[sku].badge;
+}
+
 function createApp({ metrics } = {}) {
   const app = express();
   app.disable('x-powered-by');
@@ -113,7 +124,8 @@ function createApp({ metrics } = {}) {
   app.get('/api/price', (req, res) => {
     hit('/api/price');
     const price = priceFor(req.query.sku, req.query.currency);
-    res.json(price);
+    const badge = planBadge(price.sku);
+    res.json({ ...price, badge });
   });
 
   app.post('/api/checkout', (req, res) => {
