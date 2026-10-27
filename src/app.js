@@ -84,7 +84,9 @@ const REGIONAL_DISCLOSURES = {
 
 function disclosuresFor(items, currency) {
   if (currency === 'USD') return [];
-  return items.map((i) => REGIONAL_DISCLOSURES[i.sku][currency]);
+  return items
+    .map((i) => (REGIONAL_DISCLOSURES[i.sku] || {})[currency])
+    .filter(Boolean);
 }
 
 function createApp({ metrics } = {}) {
