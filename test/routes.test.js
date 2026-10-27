@@ -43,6 +43,28 @@ test('GET /api/price covers all currencies', async (t) => {
   });
 });
 
+test('regression: price lookups must succeed for SKUs without a plan badge', async (t) => {
+  // Incident IR-10 (deploy 474271d, PR #25, commit 9261d5a, 2026-10-27):
+  // planBadge() read PLAN_BADGES[sku].badge without a fallback, but the
+  // sample map only covered SKU-1002, so every /api/price lookup for any
+  // other SKU (e.g. SKU-1001, SKU-1003) threw a TypeError ("Cannot read
+  // properties of undefined (reading 'badge')") and returned 500 on the
+  // live service.
+  await withServer(t, async (base) => {
+    for (const [sku, currency] of [['SKU-1001', 'USD'], ['SKU-1001', 'EUR'], ['SKU-1003', 'EUR'], ['SKU-1003', 'GBP']]) {
+      const res = await fetch(`${base}/api/price?sku=${sku}&currency=${currency}`);
+      assert.equal(res.status, 200, `price of ${sku} in ${currency} should succeed`);
+      const body = await res.json();
+      assert.equal(body.currency, currency);
+      assert.ok(body.amount > 0);
+    }
+    const withBadge = await fetch(`${base}/api/price?sku=SKU-1002&currency=USD`);
+    assert.equal(withBadge.status, 200);
+    const withBadgeBody = await withBadge.json();
+    assert.equal(withBadgeBody.badge, 'Most popular');
+  });
+});
+
 test('POST /api/checkout prices and validates a USD cart', async (t) => {
   await withServer(t, async (base) => {
     const ok = await fetch(base + '/api/checkout', {

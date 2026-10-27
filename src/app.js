@@ -97,7 +97,7 @@ const PLAN_BADGES = {
 };
 
 function planBadge(sku) {
-  return PLAN_BADGES[sku].badge;
+  return (PLAN_BADGES[sku] || {}).badge;
 }
 
 function createApp({ metrics } = {}) {
